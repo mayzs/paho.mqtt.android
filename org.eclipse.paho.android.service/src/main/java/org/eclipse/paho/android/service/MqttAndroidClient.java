@@ -47,16 +47,19 @@ import org.eclipse.paho.client.mqttv3.MqttPersistenceException;
 import org.eclipse.paho.client.mqttv3.MqttSecurityException;
 import org.eclipse.paho.client.mqttv3.MqttToken;
 
+import android.app.Notification;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
-import android.support.v4.content.LocalBroadcastManager;
 import android.util.SparseArray;
+
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 /**
  * Enables an android application to communicate with an MQTT server using non-blocking methods.
@@ -132,6 +135,8 @@ public class MqttAndroidClient extends BroadcastReceiver implements
 	private String clientHandle;
 
 	private Context myContext;
+	private Notification foregroundServiceNotification;
+	private int foregroundId=1;
 
 	// We hold the various tokens in a collection and pass identifiers for them
 	// to the service
@@ -155,7 +160,6 @@ public class MqttAndroidClient extends BroadcastReceiver implements
 	
 	private volatile boolean receiverRegistered = false;
 	private volatile boolean bindedService = false;
-
 	/**
 	 * Constructor - create an MqttAndroidClient that can be used to communicate with an MQTT server on android
 	 * 
@@ -411,7 +415,14 @@ public class MqttAndroidClient extends BroadcastReceiver implements
 		if (mqttService == null) { // First time - must bind to the service
 			Intent serviceStartIntent = new Intent();
 			serviceStartIntent.setClassName(myContext, SERVICE_NAME);
-			Object service = myContext.startService(serviceStartIntent);
+			Object service = null;
+			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O&&foregroundServiceNotification != null) {
+				serviceStartIntent.putExtra(MqttService.MQTT_FOREGROUND_SERVICE_NOTIFICATION, foregroundServiceNotification);
+				serviceStartIntent.putExtra(MqttService.MQTT_FOREGROUND_SERVICE_NOTIFICATION_ID, foregroundId);
+				service=myContext.startForegroundService(serviceStartIntent);
+			}else {
+				service=myContext.startService(serviceStartIntent);
+			}
 			if (service == null) {
 				IMqttActionListener listener = token.getActionCallback();
 				if (listener != null) {
@@ -1262,6 +1273,11 @@ public class MqttAndroidClient extends BroadcastReceiver implements
 		return token;
 	}
 
+	@Override
+	public boolean removeMessage(IMqttDeliveryToken token) throws MqttException {
+		return false;
+	}
+
 	/**
 	 * Returns the delivery tokens for any outstanding publish operations.
 	 * <p>
@@ -1425,6 +1441,11 @@ public class MqttAndroidClient extends BroadcastReceiver implements
 	
 	public void setManualAcks(boolean manualAcks) {
 		throw new UnsupportedOperationException();	
+	}
+
+	@Override
+	public void reconnect() throws MqttException {
+
 	}
 
 	/**
@@ -1650,6 +1671,14 @@ public class MqttAndroidClient extends BroadcastReceiver implements
 		return tokenMap.get(Integer.parseInt(activityToken));
 	}
 
+	public void setForegroundService(Notification notification,int foregroundId){
+		this.foregroundServiceNotification=notification;
+		this.foregroundId=foregroundId;
+	}
+	public void setForegroundService(Notification notification){
+		this.foregroundServiceNotification=notification;
+		this.foregroundId=1;
+	}
 	/**
 	 * Sets the DisconnectedBufferOptions for this client
 	 * @param bufferOpts the DisconnectedBufferOptions
@@ -1669,7 +1698,12 @@ public class MqttAndroidClient extends BroadcastReceiver implements
 	public void deleteBufferedMessage(int bufferIndex){
 		mqttService.deleteBufferedMessage(clientHandle, bufferIndex);
 	}
-	
+
+	@Override
+	public int getInFlightMessageCount() {
+		return 0;
+	}
+
 	/**
 	 * Get the SSLSocketFactory using SSL key store and password
 	 * <p>

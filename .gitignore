@@ -95,3 +95,4 @@ hs_err_pid*
 
 
 org.eclipse.paho.android.sample/libs/
+/org.eclipse.paho.android.service/publish.gradle

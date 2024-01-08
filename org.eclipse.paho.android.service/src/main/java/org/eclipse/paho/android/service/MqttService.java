@@ -29,11 +29,13 @@ import org.eclipse.paho.client.mqttv3.MqttPersistenceException;
 import org.eclipse.paho.client.mqttv3.MqttSecurityException;
 
 import android.annotation.SuppressLint;
+import android.app.Notification;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.ServiceInfo;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Build;
@@ -41,8 +43,7 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.os.PowerManager;
 import android.os.PowerManager.WakeLock;
-import android.support.v4.content.LocalBroadcastManager;
-
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 /**
  * <p>
  * The android service which interfaces with an MQTT client implementation
@@ -615,7 +616,6 @@ public class MqttService extends Service implements MqttTraceHandler {
   @Override
   public void onCreate() {
     super.onCreate();
-
     // create a binder that will let the Activity UI send
     // commands to the Service
     mqttServiceBinder = new MqttServiceBinder(this);
@@ -663,16 +663,35 @@ public class MqttService extends Service implements MqttTraceHandler {
     mqttServiceBinder.setActivityToken(activityToken);
     return mqttServiceBinder;
   }
+ public static String MQTT_FOREGROUND_SERVICE_NOTIFICATION="MQTT_FOREGROUND_SERVICE_NOTIFICATION";
+ public static String MQTT_FOREGROUND_SERVICE_NOTIFICATION_ID="MQTT_FOREGROUND_SERVICE_NOTIFICATION_ID";
 
   /**
-   * @see android.app.Service#onStartCommand(Intent,int,int)
+   * @see Service#onStartCommand(Intent,int,int)
    */
   @Override
   public int onStartCommand(final Intent intent, int flags, final int startId) {
     // run till explicitly stopped, restart when
     // process restarted
 	registerBroadcastReceivers();
-
+    if (intent!=null){
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O){
+            Notification notification= null;
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                notification = intent.getParcelableExtra(MQTT_FOREGROUND_SERVICE_NOTIFICATION, Notification.class);
+            }else {
+                notification=intent.getParcelableExtra(MQTT_FOREGROUND_SERVICE_NOTIFICATION);
+            }
+            int notificationId = intent.getIntExtra(MQTT_FOREGROUND_SERVICE_NOTIFICATION_ID,1);
+            if (notification!=null){
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    startForeground(notificationId, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
+                } else {
+                    startForeground(notificationId, notification);
+                }
+            }
+        }
+    }
     return START_STICKY;
   }
 
@@ -770,22 +789,36 @@ public class MqttService extends Service implements MqttTraceHandler {
   private void registerBroadcastReceivers() {
 		if (networkConnectionMonitor == null) {
 			networkConnectionMonitor = new NetworkConnectionIntentReceiver();
-			registerReceiver(networkConnectionMonitor, new IntentFilter(
-					ConnectivityManager.CONNECTIVITY_ACTION));
-		}
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(networkConnectionMonitor, new IntentFilter(
+                        ConnectivityManager.CONNECTIVITY_ACTION), Context.RECEIVER_EXPORTED);
+            } else {
+                registerReceiver(networkConnectionMonitor, new IntentFilter(
+                        ConnectivityManager.CONNECTIVITY_ACTION));
+            }
 
-		if (Build.VERSION.SDK_INT < 14 /**Build.VERSION_CODES.ICE_CREAM_SANDWICH**/) {
+        }
+
+		//if (Build.VERSION.SDK_INT < 14 /**Build.VERSION_CODES.ICE_CREAM_SANDWICH**/) {
 			// Support the old system for background data preferences
 			ConnectivityManager cm = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
 			backgroundDataEnabled = cm.getBackgroundDataSetting();
 			if (backgroundDataPreferenceMonitor == null) {
 				backgroundDataPreferenceMonitor = new BackgroundDataPreferenceReceiver();
-				registerReceiver(
-						backgroundDataPreferenceMonitor,
-						new IntentFilter(
-								ConnectivityManager.ACTION_BACKGROUND_DATA_SETTING_CHANGED));
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU){
+                    registerReceiver(
+                            backgroundDataPreferenceMonitor,
+                            new IntentFilter(
+                                    ConnectivityManager.ACTION_BACKGROUND_DATA_SETTING_CHANGED),Context.RECEIVER_EXPORTED);
+                }else {
+                    registerReceiver(
+                            backgroundDataPreferenceMonitor,
+                            new IntentFilter(
+                                    ConnectivityManager.ACTION_BACKGROUND_DATA_SETTING_CHANGED));
+                }
+
 			}
-		}
+		//}
   }
 
   private void unregisterBroadcastReceivers(){
@@ -794,11 +827,11 @@ public class MqttService extends Service implements MqttTraceHandler {
   		networkConnectionMonitor = null;
   	}
 
-  	if (Build.VERSION.SDK_INT < 14 /**Build.VERSION_CODES.ICE_CREAM_SANDWICH**/) {
+  	//if (Build.VERSION.SDK_INT < 14 /**Build.VERSION_CODES.ICE_CREAM_SANDWICH**/) {
   		if(backgroundDataPreferenceMonitor != null){
   			unregisterReceiver(backgroundDataPreferenceMonitor);
   		}
-		}
+		//}
   }
 
   /*
@@ -816,8 +849,8 @@ public class MqttService extends Service implements MqttTraceHandler {
 			// by requesting a wake lock - we request the minimum possible wake
 			// lock - just enough to keep the CPU running until we've finished
 			PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
-			WakeLock wl = pm
-					.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MQTT");
+			@SuppressLint("InvalidWakeLockTag")
+            WakeLock wl = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MQTT");
 			wl.acquire();
 			traceDebug(TAG,"Reconnect for Network recovery.");
 			if (isOnline()) {

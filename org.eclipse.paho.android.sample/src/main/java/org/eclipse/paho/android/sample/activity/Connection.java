@@ -12,6 +12,7 @@ import org.eclipse.paho.android.sample.internal.Persistence;
 import org.eclipse.paho.android.sample.internal.PersistenceException;
 import org.eclipse.paho.android.sample.model.ReceivedMessage;
 import org.eclipse.paho.android.sample.model.Subscription;
+import org.eclipse.paho.android.sample.utils.Utils;
 import org.eclipse.paho.android.service.MqttAndroidClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
@@ -122,6 +123,7 @@ public class Connection {
         }
 
         MqttAndroidClient client = new MqttAndroidClient(context, uri, clientId);
+        client.setForegroundService(Utils.getInstance().getNotification(context,"正在运行",R.mipmap.ic_launcher));
         return new Connection(clientHandle, clientId, host, port, context, client, tlsConnection);
     }
 
@@ -138,6 +140,7 @@ public class Connection {
         this.port = port;
         this.tlsConnection = tlsConnection;
         this.client = new MqttAndroidClient(context, uri, clientId);
+        client.setForegroundService(Utils.getInstance().getNotification(context,"正在运行",R.mipmap.ic_launcher));
 
     }
 

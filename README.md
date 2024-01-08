@@ -14,7 +14,7 @@ The Paho Android Service is an MQTT client library written in Java for developin
 | Message Persistence | :heavy_check_mark: |   |
 
 
-To get started, download [Android Studio](http://developer.android.com/tools/studio/index.html). You will also need to download the [Android SDK](https://developer.android.com/sdk/installing/adding-packages.html). Currently you will need the SDK for 24.
+To get started, download [Android Studio](http://developer.android.com/tools/studio/index.html). You will also need to download the [Android SDK](https://developer.android.com/sdk/installing/adding-packages.html). Currently you will need the SDK for 24.Support AndroidX,Support Android 14
 
 
 ## Project description:
@@ -72,16 +72,14 @@ The latest release version is ```1.1.1``` and the current snapshot version is ``
 If you are using Android Studio and / or Gradle to manage your application dependencies and build then you can use the same repository to get the Paho Android Service. Add the Eclipse Maven repository to your `build.gradle` file and then add the Paho dependency to the `dependencies` section.
 
 ```
-repositories {
-    maven {
-        url "https://repo.eclipse.org/content/repositories/paho-snapshots/"
-    }
-}
 
 
 dependencies {
-    compile 'org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.1.0'
-    compile 'org.eclipse.paho:org.eclipse.paho.android.service:1.1.1'
+    //compile 'org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.1.0'
+    //compile 'org.eclipse.paho:org.eclipse.paho.android.service:1.1.1'
+    
+    implementation 'org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5'
+    implementation 'io.github.mayzs:paho.mqtt.android:1.1.2'
 }
 ```
 __Note:__ currently you have to include the `org.eclipse.paho:org.eclipse.paho.client.mqttv3` dependency as well. We are attempting to get the build to produce an Android `AAR` file that contains both the Android service as well as it's dependencies, however this is still experimental. If you wish to try it, remove the `org.eclipse.paho:org.eclipse.paho.client.mqttv3` dependency and append `@aar` to the end of the Android Service dependency. E.g. `org.eclipse.paho:org.eclipse.paho.android.service:1.1.1@aar`
