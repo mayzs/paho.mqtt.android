@@ -81,7 +81,7 @@ public class PahoExampleActivity extends AppCompatActivity {
         clientId = clientId + System.currentTimeMillis();
 
         mqttAndroidClient = new MqttAndroidClient(getApplicationContext(), serverUri, clientId);
-        mqttAndroidClient.setForegroundService(Utils.getInstance().getNotification(this,"正在运行",R.mipmap.ic_launcher));
+        mqttAndroidClient.setForegroundService(Utils.getInstance().getNotification(this,"正在运行",1));
         mqttAndroidClient.setCallback(new MqttCallbackExtended() {
             @Override
             public void connectComplete(boolean reconnect, String serverURI) {
