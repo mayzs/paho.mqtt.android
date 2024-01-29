@@ -8,6 +8,9 @@ The Paho Android Service is an MQTT client library written in Java for developin
 
 implementation 'org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5'
 implementation 'io.github.mayzs:paho.mqtt.android:1.1.2'
+低版本 gradle 使用 implementation 'io.github.mayzs:paho.mqtt.android:1.1.2@aar'
+
+manifest中 service 标签添加  android:foregroundServiceType="dataSync"
 
 MqttAndroidClient client = new MqttAndroidClient(context, uri, clientId);
   android 8.0 及以上添加
