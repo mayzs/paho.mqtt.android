@@ -506,7 +506,9 @@ public class MqttAndroidClient extends BroadcastReceiver implements
 		IMqttToken token = new MqttTokenAndroid(this, null,
 				null);
 		String activityToken = storeToken(token);
-		mqttService.disconnect(clientHandle, null, activityToken);
+		if (mqttService!=null){
+			mqttService.disconnect(clientHandle, null, activityToken);
+		}
 		return token;
 	}
 
@@ -535,8 +537,10 @@ public class MqttAndroidClient extends BroadcastReceiver implements
 		IMqttToken token = new MqttTokenAndroid(this, null,
 				null);
 		String activityToken = storeToken(token);
-		mqttService.disconnect(clientHandle, quiesceTimeout, null,
-				activityToken);
+		if (mqttService!=null) {
+			mqttService.disconnect(clientHandle, quiesceTimeout, null,
+					activityToken);
+		}
 		return token;
 	}
 
@@ -567,7 +571,9 @@ public class MqttAndroidClient extends BroadcastReceiver implements
 		IMqttToken token = new MqttTokenAndroid(this, userContext,
 				callback);
 		String activityToken = storeToken(token);
-		mqttService.disconnect(clientHandle, null, activityToken);
+		if (mqttService!=null) {
+			mqttService.disconnect(clientHandle, null, activityToken);
+		}
 		return token;
 	}
 
@@ -620,8 +626,10 @@ public class MqttAndroidClient extends BroadcastReceiver implements
 		IMqttToken token = new MqttTokenAndroid(this, userContext,
 				callback);
 		String activityToken = storeToken(token);
-		mqttService.disconnect(clientHandle, quiesceTimeout, null,
-				activityToken);
+		if (mqttService!=null) {
+			mqttService.disconnect(clientHandle, quiesceTimeout, null,
+					activityToken);
+		}
 		return token;
 	}
 
