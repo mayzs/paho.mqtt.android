@@ -433,9 +433,12 @@ public class MqttAndroidClient extends BroadcastReceiver implements
 
 			// We bind with BIND_SERVICE_FLAG (0), leaving us the manage the lifecycle
 			// until the last time it is stopped by a call to stopService()
-			myContext.bindService(serviceStartIntent, serviceConnection,
-					Context.BIND_AUTO_CREATE);
-
+			try {
+				myContext.bindService(serviceStartIntent, serviceConnection,
+						Context.BIND_AUTO_CREATE);
+			}catch (Exception e){
+				e.printStackTrace();
+			}
 			if (!receiverRegistered) registerReceiver(this);
 		}
 		else {
