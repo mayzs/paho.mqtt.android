@@ -1,7 +1,7 @@
 apply plugin: 'com.android.library'
 ext {
     PUBLISH_ARTIFACT_ID = "paho.mqtt.android" //你的artifact_id，一般是module的名字
-    PUBLISH_VERSION = "1.1.6"  //发布版本号
+    PUBLISH_VERSION = "1.1.7"  //发布版本号
     PUBLISH_GROUP_ID = 'io.github.mayzs'  //你的sonatype的group_id
     GITHUB_URL = "https://github.com/mayzs/paho.mqtt.android"//github url
     GITHUB_CLONE_URL = "https://github.com/mayzs/paho.mqtt.android.git" //github clone url
@@ -40,5 +40,4 @@ dependencies {
     implementation "org.eclipse.paho:org.eclipse.paho.client.mqttv3:${rootProject.ext.clientVersion}"
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'androidx.localbroadcastmanager:localbroadcastmanager:1.1.0'
-    implementation fileTree(include: ['*.jar'], dir: 'libs')
 }

@@ -123,7 +123,7 @@ public class Connection {
         }
 
         MqttAndroidClient client = new MqttAndroidClient(context, uri, clientId);
-        client.setForegroundService(Utils.getInstance().getNotification(context,"正在运行",1));
+        client.setForegroundService(Utils.getInstance().getNotification(context,"正在运行",R.mipmap.ic_launcher));
         return new Connection(clientHandle, clientId, host, port, context, client, tlsConnection);
     }
 
@@ -140,7 +140,7 @@ public class Connection {
         this.port = port;
         this.tlsConnection = tlsConnection;
         this.client = new MqttAndroidClient(context, uri, clientId);
-        client.setForegroundService(Utils.getInstance().getNotification(context,"正在运行",1));
+        client.setForegroundService(Utils.getInstance().getNotification(context,"正在运行",R.mipmap.ic_launcher));
 
     }
 

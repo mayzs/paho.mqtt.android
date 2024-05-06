@@ -32,7 +32,9 @@
             </intent-filter>
         </activity>
         <!-- Mqtt Service -->
-        <service android:name="org.eclipse.paho.android.service.MqttService">
+        <service android:name="org.eclipse.paho.android.service.MqttService"
+            android:exported="true"
+            android:foregroundServiceType="dataSync">
         </service>
     </application>
 
