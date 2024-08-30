@@ -35,7 +35,7 @@ dependencies {
     //compile fileTree(dir: '../org.eclipse.paho.android/service/libs', excludes: ["org.eclipse.paho.client.mqttv3-${rootProject.ext.clientVersion}.jar"], include: '')
     implementation 'androidx.appcompat:appcompat:1.6.1'
     //ompile "com.android.support:recyclerview-v7:${rootProject.ext.supportLibVersion}"
-    implementation 'androidx.recyclerview:recyclerview:1.3.0'
+    implementation 'androidx.recyclerview:recyclerview:1.3.2'
     implementation "org.eclipse.paho:org.eclipse.paho.client.mqttv3:${rootProject.ext.clientVersion}"
     implementation (project(':org.eclipse.paho.android.service')){
         //exclude module: "org.eclipse.paho.client.mqttv3"

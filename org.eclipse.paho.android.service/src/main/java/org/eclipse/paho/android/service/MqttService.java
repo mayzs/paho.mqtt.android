@@ -851,7 +851,7 @@ public class MqttService extends Service implements MqttTraceHandler {
 			PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
 			@SuppressLint("InvalidWakeLockTag")
             WakeLock wl = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MQTT");
-			wl.acquire();
+			wl.acquire(10*60*1000L /*10 minutes*/);
 			traceDebug(TAG,"Reconnect for Network recovery.");
 			if (isOnline()) {
 				traceDebug(TAG,"Online,reconnect.");

@@ -111,11 +111,15 @@ public class MqttAndroidClient extends BroadcastReceiver implements
 
 		@Override
 		public void onServiceConnected(ComponentName name, IBinder binder) {
+			try{
 			mqttService = ((MqttServiceBinder) binder).getService();
 			bindedService = true;
 			// now that we have the service available, we can actually
 			// connect...
 			doConnect();
+			}catch (Exception e){
+				e.printStackTrace();
+			}
 		}
 
 		@Override
