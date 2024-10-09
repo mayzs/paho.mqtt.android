@@ -7,14 +7,16 @@ The Paho Android Service is an MQTT client library written in Java for developin
 修改原有 eclipse paho mqtt android 项目，支持AndroidX,支持 Android 14
 
 implementation 'org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5'
-implementation 'io.github.mayzs:paho.mqtt.android:1.1.7'
-低版本 gradle 使用 implementation 'io.github.mayzs:paho.mqtt.android:1.1.7@aar'
+implementation 'io.github.mayzs:paho.mqtt.android:1.2.0'
+低版本 gradle 使用 implementation 'io.github.mayzs:paho.mqtt.android:1.2.0@aar'
 
 manifest中 service 标签添加  android:foregroundServiceType="dataSync"
 
 MqttAndroidClient client = new MqttAndroidClient(context, uri, clientId);
   android 8.0 及以上添加
  client.setForegroundService(notification,1));
+ 
+ 1.2.0 版本使用 Worker 替换AlarmManager,去除USE_EXACT_ALARM和SCHEDULE_EXACT_ALARM权限
  ```
 
 详情参考 : 原项目[https://github.com/eclipse/paho.mqtt.android](https://github.com/eclipse/paho.mqtt.android)
