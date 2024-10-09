@@ -1,13 +1,15 @@
 apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
 
 android {
-    compileSdkVersion rootProject.ext.compileSdkVersion
-    buildToolsVersion rootProject.ext.buildToolsVersion
+    compileSdk rootProject.ext.compileSdkVersion
+//    buildToolsVersion rootProject.ext.buildToolsVersion
+    namespace rootProject.ext.sampleArchivesBaseName
 
     defaultConfig {
         applicationId rootProject.ext.sampleArchivesBaseName
-        minSdkVersion 24
-        targetSdkVersion 34
+        minSdk 24
+        targetSdk rootProject.ext.compileSdkVersion
         versionCode 1
         versionName "0.1"
     }
@@ -20,6 +22,11 @@ android {
     lintOptions {
         abortOnError false
     }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions { jvmTarget =17 }
 //    dexOptions {
 //        preDexLibraries = false
 //    }
@@ -33,9 +40,10 @@ android {
 
 dependencies {
     //compile fileTree(dir: '../org.eclipse.paho.android/service/libs', excludes: ["org.eclipse.paho.client.mqttv3-${rootProject.ext.clientVersion}.jar"], include: '')
-    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'androidx.appcompat:appcompat:1.7.0'
     //ompile "com.android.support:recyclerview-v7:${rootProject.ext.supportLibVersion}"
     implementation 'androidx.recyclerview:recyclerview:1.3.2'
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
     implementation "org.eclipse.paho:org.eclipse.paho.client.mqttv3:${rootProject.ext.clientVersion}"
     implementation (project(':org.eclipse.paho.android.service')){
         //exclude module: "org.eclipse.paho.client.mqttv3"

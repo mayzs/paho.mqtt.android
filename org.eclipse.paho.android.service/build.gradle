@@ -1,7 +1,8 @@
 apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
 ext {
     PUBLISH_ARTIFACT_ID = "paho.mqtt.android" //你的artifact_id，一般是module的名字
-    PUBLISH_VERSION = "1.1.8"  //发布版本号
+    PUBLISH_VERSION = "1.2.0"  //发布版本号
     PUBLISH_GROUP_ID = 'io.github.mayzs'  //你的sonatype的group_id
     GITHUB_URL = "https://github.com/mayzs/paho.mqtt.android"//github url
     GITHUB_CLONE_URL = "https://github.com/mayzs/paho.mqtt.android.git" //github clone url
@@ -14,9 +15,10 @@ ext {
 apply from: 'publish.gradle'
 android {
     compileSdk rootProject.ext.compileSdkVersion
+    namespace rootProject.ext.serviceArchivesBaseName
     defaultConfig {
         minSdk 23
-        targetSdk 34
+        targetSdk rootProject.ext.compileSdkVersion
 
         testApplicationId "org.eclipse.paho.android.service.test"
     }
@@ -34,10 +36,18 @@ android {
     lintOptions {
         abortOnError false
     }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions { jvmTarget =17 }
 }
 
 dependencies {
     implementation "org.eclipse.paho:org.eclipse.paho.client.mqttv3:${rootProject.ext.clientVersion}"
-    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'androidx.appcompat:appcompat:1.7.0'
     implementation 'androidx.localbroadcastmanager:localbroadcastmanager:1.1.0'
+    implementation 'androidx.work:work-runtime:2.9.1'
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+    implementation 'androidx.lifecycle:lifecycle-extensions:2.2.0'
 }

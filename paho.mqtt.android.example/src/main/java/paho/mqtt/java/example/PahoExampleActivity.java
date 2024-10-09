@@ -48,7 +48,8 @@ public class PahoExampleActivity extends AppCompatActivity {
     MqttAndroidClient mqttAndroidClient;
 
     final String serverUri = "tcp://iot.eclipse.org:1883";
-
+    public static final String USERNAME = "";
+    public static final String PASSWORD = "";
     String clientId = "ExampleAndroidClient";
     final String subscriptionTopic = "exampleAndroidTopic";
     final String publishTopic = "exampleAndroidPublishTopic";
@@ -115,7 +116,10 @@ public class PahoExampleActivity extends AppCompatActivity {
         mqttConnectOptions.setAutomaticReconnect(true);
         mqttConnectOptions.setCleanSession(false);
 
-
+        mqttConnectOptions.setConnectionTimeout(10);
+        mqttConnectOptions.setKeepAliveInterval(30);
+        mqttConnectOptions.setUserName(USERNAME);
+        mqttConnectOptions.setPassword(PASSWORD.toCharArray());
 
 
 

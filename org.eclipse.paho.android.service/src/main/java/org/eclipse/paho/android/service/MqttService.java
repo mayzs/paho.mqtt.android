@@ -16,6 +16,7 @@
 package org.eclipse.paho.android.service;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.eclipse.paho.client.mqttv3.DisconnectedBufferOptions;
@@ -37,13 +38,21 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.ServiceInfo;
 import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
+import android.net.Network;
+import android.net.NetworkCapabilities;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
-import android.os.PowerManager;
-import android.os.PowerManager.WakeLock;
+import android.os.Looper;
+import android.os.Message;
+
+import androidx.annotation.NonNull;
+import androidx.lifecycle.LifecycleService;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+import androidx.work.OneTimeWorkRequest;
+import androidx.work.WorkManager;
+
 /**
  * <p>
  * The android service which interfaces with an MQTT client implementation
@@ -224,7 +233,7 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager;
  * </table>
  */
 @SuppressLint("Registered")
-public class MqttService extends Service implements MqttTraceHandler {
+public class MqttService extends LifecycleService implements MqttTraceHandler {
 
 	// Identifier for Intents, log messages, etc..
 	static final String TAG = "MqttService";
@@ -658,7 +667,8 @@ public class MqttService extends Service implements MqttTraceHandler {
     // What we pass back to the Activity on binding -
     // a reference to ourself, and the activityToken
     // we were given when started
-    String activityToken = intent
+      super.onBind(intent);
+      String activityToken = intent
         .getStringExtra(MqttServiceConstants.CALLBACK_ACTIVITY_TOKEN);
     mqttServiceBinder.setActivityToken(activityToken);
     return mqttServiceBinder;
@@ -673,11 +683,12 @@ public class MqttService extends Service implements MqttTraceHandler {
   public int onStartCommand(final Intent intent, int flags, final int startId) {
     // run till explicitly stopped, restart when
     // process restarted
-	registerBroadcastReceivers();
+      super.onStartCommand(intent, flags, startId);
+      registerBroadcastReceivers();
     if (intent!=null){
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O){
             Notification notification= null;
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 notification = intent.getParcelableExtra(MQTT_FOREGROUND_SERVICE_NOTIFICATION, Notification.class);
             }else {
                 notification=intent.getParcelableExtra(MQTT_FOREGROUND_SERVICE_NOTIFICATION);
@@ -842,45 +853,70 @@ public class MqttService extends Service implements MqttTraceHandler {
   private class NetworkConnectionIntentReceiver extends BroadcastReceiver {
 
 		@Override
-        @SuppressLint("Wakelock")
+        //@SuppressLint("Wakelock")
 		public void onReceive(Context context, Intent intent) {
 			traceDebug(TAG, "Internal network status receive.");
 			// we protect against the phone switching off
 			// by requesting a wake lock - we request the minimum possible wake
 			// lock - just enough to keep the CPU running until we've finished
-			PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
-			@SuppressLint("InvalidWakeLockTag")
-            WakeLock wl = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MQTT");
-			wl.acquire(10*60*1000L /*10 minutes*/);
-			traceDebug(TAG,"Reconnect for Network recovery.");
-			if (isOnline()) {
-				traceDebug(TAG,"Online,reconnect.");
-				// we have an internet connection - have another try at
-				// connecting
-				reconnect();
-			} else {
-				notifyClientsOffline();
-			}
-
-			wl.release();
+			//PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
+			//@SuppressLint("InvalidWakeLockTag")
+            //WakeLock wl = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MQTT");
+			//wl.acquire(10*60*1000L /*10 minutes*/);
+            handler.sendEmptyMessage(1);
+			//traceDebug(TAG,"Reconnect for Network recovery.");
+			//if (isOnline()) {
+			//	traceDebug(TAG,"Online,reconnect.");
+			//	// we have an internet connection - have another try at
+			//	// connecting
+			//	reconnect();
+			//} else {
+			//	notifyClientsOffline();
+			//}
+			//wl.release();
 		}
   }
-
+private final Handler handler = new Handler(Objects.requireNonNull(Looper.myLooper())){
+    @Override
+    public void handleMessage(@NonNull Message msg) {
+        super.handleMessage(msg);
+        if (msg.what == 1){
+            OneTimeWorkRequest workRequest = new OneTimeWorkRequest.Builder(NetworkConnectionWorker.class)
+                    .build();
+            WorkManager.getInstance(MqttService.this).enqueue(workRequest);
+            WorkManager.getInstance(MqttService.this).getWorkInfoByIdLiveData(workRequest.getId())
+                    .observe(MqttService.this, workInfo -> {
+                        if (workInfo != null && workInfo.getState().isFinished()) {
+                            traceDebug(TAG,"Reconnect for Network recovery.");
+                            if (isOnline()) {
+                                traceDebug(TAG,"Online,reconnect.");
+                                // we have an internet connection - have another try at
+                                // connecting
+                                reconnect();
+                            } else {
+                                notifyClientsOffline();
+                            }
+                        }
+                    });
+        }
+    }
+};
 	/**
 	 * @return whether the android service can be regarded as online
 	 */
 	public boolean isOnline() {
 		ConnectivityManager cm = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
-		NetworkInfo networkInfo = cm.getActiveNetworkInfo();
-      //noinspection RedundantIfStatement
-      if (networkInfo != null
-              && networkInfo.isAvailable()
-              && networkInfo.isConnected()
-              && backgroundDataEnabled) {
-			return true;
-		}
-
-		return false;
+		Network network = cm.getActiveNetwork();
+        if (network!=null){
+            NetworkCapabilities networkCapabilities = cm.getNetworkCapabilities(network);
+            if (networkCapabilities!=null){
+                return (networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) || networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) && backgroundDataEnabled;
+            }else {
+                return false;
+            }
+        }else {
+            return false;
+        }
 	}
 
 	/**

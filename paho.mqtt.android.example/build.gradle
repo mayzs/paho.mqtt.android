@@ -1,13 +1,14 @@
 apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
 
 android {
-    compileSdkVersion rootProject.ext.compileSdkVersion
-    buildToolsVersion rootProject.ext.buildToolsVersion
-
+    compileSdk rootProject.ext.compileSdkVersion
+//    buildToolsVersion rootProject.ext.buildToolsVersion
+    namespace "paho.mqtt.java.example"
     defaultConfig {
         applicationId "paho.mqtt.java.example"
-        minSdkVersion 23
-        targetSdkVersion 34
+        minSdk 23
+        targetSdk rootProject.ext.compileSdkVersion
         versionCode 1
         versionName "1.0"
     }
@@ -23,6 +24,11 @@ android {
     lintOptions {
         abortOnError false
     }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions { jvmTarget =17 }
 }
 
 
@@ -31,6 +37,7 @@ dependencies {
     implementation 'com.google.android.material:material:1.9.0'
     testImplementation 'junit:junit:4.12'
     implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
 //    compile "com.android.support:appcompat-v7:${rootProject.ext.supportLibVersion}"
 //    compile "com.android.support:design:${rootProject.ext.supportLibVersion}"
 //    compile "com.android.support:recyclerview-v7:${rootProject.ext.supportLibVersion}"
