@@ -16,6 +16,8 @@
  */
 package org.eclipse.paho.android.service;
 
+import static android.content.Context.RECEIVER_NOT_EXPORTED;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.KeyManagementException;
@@ -59,7 +61,7 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.util.SparseArray;
 
-import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+import androidx.core.content.ContextCompat;
 
 /**
  * Enables an android application to communicate with an MQTT server using non-blocking methods.
@@ -465,8 +467,9 @@ public class MqttAndroidClient extends BroadcastReceiver implements
 	private void registerReceiver(BroadcastReceiver receiver) {
 		IntentFilter filter = new IntentFilter();
 				filter.addAction(MqttServiceConstants.CALLBACK_TO_ACTIVITY);
-				LocalBroadcastManager.getInstance(myContext).registerReceiver(receiver, filter);
-				receiverRegistered = true;
+				//LocalBroadcastManager.getInstance(myContext).registerReceiver(receiver, filter);
+		ContextCompat.registerReceiver(myContext, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED);
+		receiverRegistered = true;
 	}
 
 	/**
@@ -1781,7 +1784,8 @@ public class MqttAndroidClient extends BroadcastReceiver implements
 	public void unregisterResources(){
 		if(myContext != null && receiverRegistered){
 			synchronized (MqttAndroidClient.this) {
-				LocalBroadcastManager.getInstance(myContext).unregisterReceiver(this);
+				//LocalBroadcastManager.getInstance(myContext).unregisterReceiver(this);
+				myContext.unregisterReceiver(this);
 				receiverRegistered = false;
 			}
 			if(bindedService){

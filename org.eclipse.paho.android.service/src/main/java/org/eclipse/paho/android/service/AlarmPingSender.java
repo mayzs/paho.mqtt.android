@@ -25,8 +25,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 
+import androidx.work.Constraints;
+import androidx.work.NetworkType;
 import androidx.work.OneTimeWorkRequest;
 import androidx.work.WorkManager;
 
@@ -121,7 +125,8 @@ class AlarmPingSender implements MqttPingSender {
 			String action = MqttServiceConstants.PING_SENDER
 					+ comms.getClient().getClientId();
 			Intent intent = new Intent(action);
-			that.service.sendBroadcast(intent);
+		Handler handler = new Handler(Looper.getMainLooper());
+		handler.post(() -> that.service.sendBroadcast(intent));
 
 	}
 
@@ -134,7 +139,7 @@ class AlarmPingSender implements MqttPingSender {
 				+ that.comms.getClient().getClientId();
 
 		@Override
-        @SuppressLint("Wakelock")
+        //@SuppressLint("Wakelock")
 		public void onReceive(Context context, Intent intent) {
 			// According to the docs, "Alarm Manager holds a CPU wake lock as
 			// long as the alarm receiver's onReceive() method is executing.
@@ -145,6 +150,10 @@ class AlarmPingSender implements MqttPingSender {
 			Log.d(TAG, "Sending Ping at:" + System.currentTimeMillis()+intent.getAction());
 			OneTimeWorkRequest workRequest = new OneTimeWorkRequest.Builder(AlarmWorker.class)
 					.addTag("AlarmWorkerTAG")
+					.setConstraints(new Constraints.Builder()
+							.setRequiredNetworkType(NetworkType.CONNECTED)
+							.setRequiresBatteryNotLow(true)
+							.build())
 					.build();
 			WorkManager.getInstance(that.service).enqueue(workRequest);
 			WorkManager.getInstance(that.service).getWorkInfoByIdLiveData(workRequest.getId()).observe(that.service, workInfo ->{

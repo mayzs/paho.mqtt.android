@@ -71,7 +71,7 @@ release.properties
 gradle-app.setting
 
 # Properties
-gradle.properties
+/gradle.properties
 
 # Mobile Tools for Java (J2ME)
 .mtj.tmp/
@@ -96,3 +96,4 @@ hs_err_pid*
 
 org.eclipse.paho.android.sample/libs/
 /org.eclipse.paho.android.service/publish.gradle
+/org.eclipse.paho.android.service/publish.gradle.kts

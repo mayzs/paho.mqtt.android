@@ -1,24 +1,12 @@
 apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
-ext {
-    PUBLISH_ARTIFACT_ID = "paho.mqtt.android" //你的artifact_id，一般是module的名字
-    PUBLISH_VERSION = "1.2.1"  //发布版本号
-    PUBLISH_GROUP_ID = 'io.github.mayzs'  //你的sonatype的group_id
-    GITHUB_URL = "https://github.com/mayzs/paho.mqtt.android"//github url
-    GITHUB_CLONE_URL = "https://github.com/mayzs/paho.mqtt.android.git" //github clone url
-    GITHUB_BRANCHE_URL = "https://github.com/mayzs/paho.mqtt.android/tree/master"
-    //github branch url
-    PROJECT_NAME = "paho.mqtt.android"//项目名称
-    PROJECT_DESCRIPTION = "修改原有 eclipse paho mqtt android 项目，支持AndroidX,支持 Android 14"
-//项目描述
-}
 apply from: 'publish.gradle'
 android {
-    compileSdk rootProject.ext.compileSdkVersion
-    namespace rootProject.ext.serviceArchivesBaseName
+    compileSdk 35
+    namespace 'org.eclipse.paho.android.service'
     defaultConfig {
         minSdk 23
-        targetSdk rootProject.ext.compileSdkVersion
+        targetSdk 35
 
         testApplicationId "org.eclipse.paho.android.service.test"
     }
@@ -45,9 +33,9 @@ android {
 
 dependencies {
     implementation "org.eclipse.paho:org.eclipse.paho.client.mqttv3:${rootProject.ext.clientVersion}"
-    implementation 'androidx.appcompat:appcompat:1.7.0'
-    implementation 'androidx.localbroadcastmanager:localbroadcastmanager:1.1.0'
-    implementation 'androidx.work:work-runtime:2.9.1'
+    implementation 'androidx.appcompat:appcompat:1.7.1'
+//    implementation 'androidx.localbroadcastmanager:localbroadcastmanager:1.1.0'
+    implementation 'androidx.work:work-runtime-ktx:2.10.0'
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
     implementation 'androidx.lifecycle:lifecycle-extensions:2.2.0'
 }

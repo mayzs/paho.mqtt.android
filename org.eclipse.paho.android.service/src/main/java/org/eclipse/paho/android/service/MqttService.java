@@ -49,7 +49,8 @@ import android.os.Message;
 
 import androidx.annotation.NonNull;
 import androidx.lifecycle.LifecycleService;
-import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+import androidx.work.Constraints;
+import androidx.work.NetworkType;
 import androidx.work.OneTimeWorkRequest;
 import androidx.work.WorkManager;
 
@@ -293,7 +294,9 @@ public class MqttService extends LifecycleService implements MqttTraceHandler {
     if (dataBundle != null) {
       callbackIntent.putExtras(dataBundle);
     }
-    LocalBroadcastManager.getInstance(this).sendBroadcast(callbackIntent);
+    //LocalBroadcastManager.getInstance(this).sendBroadcast(callbackIntent);
+    Handler handler = new Handler(Looper.getMainLooper());
+    handler.post(() -> sendBroadcast(callbackIntent));
   }
 
   // The major API implementation follows :-
@@ -863,7 +866,8 @@ public class MqttService extends LifecycleService implements MqttTraceHandler {
 			//@SuppressLint("InvalidWakeLockTag")
             //WakeLock wl = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MQTT");
 			//wl.acquire(10*60*1000L /*10 minutes*/);
-            handler.sendEmptyMessage(1);
+            //handler.sendEmptyMessage(1);
+            handler.sendEmptyMessageDelayed(1, 10*60*1000);
 			//traceDebug(TAG,"Reconnect for Network recovery.");
 			//if (isOnline()) {
 			//	traceDebug(TAG,"Online,reconnect.");
@@ -882,6 +886,7 @@ private final Handler handler = new Handler(Objects.requireNonNull(Looper.myLoop
         super.handleMessage(msg);
         if (msg.what == 1){
             OneTimeWorkRequest workRequest = new OneTimeWorkRequest.Builder(NetworkConnectionWorker.class)
+                    .setConstraints(new Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
                     .build();
             WorkManager.getInstance(MqttService.this).enqueue(workRequest);
             WorkManager.getInstance(MqttService.this).getWorkInfoByIdLiveData(workRequest.getId())

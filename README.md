@@ -7,8 +7,8 @@ The Paho Android Service is an MQTT client library written in Java for developin
 修改原有 eclipse paho mqtt android 项目，支持AndroidX,支持 Android 14
 
 implementation 'org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5'
-implementation 'io.github.mayzs:paho.mqtt.android:1.2.1'
-低版本 gradle 使用 implementation 'io.github.mayzs:paho.mqtt.android:1.2.1@aar'
+implementation 'io.github.mayzs:paho.mqtt.android:1.2.2'
+低版本 gradle 使用 implementation 'io.github.mayzs:paho.mqtt.android:1.2.2@aar'
 
 manifest中 service 标签添加  android:foregroundServiceType="dataSync"
 
@@ -97,7 +97,7 @@ dependencies {
     //compile 'org.eclipse.paho:org.eclipse.paho.android.service:1.1.1'
     
     implementation 'org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5'
-    implementation 'io.github.mayzs:paho.mqtt.android:1.1.2'
+    implementation 'io.github.mayzs:paho.mqtt.android:1.2.2'
 }
 ```
 __Note:__ currently you have to include the `org.eclipse.paho:org.eclipse.paho.client.mqttv3` dependency as well. We are attempting to get the build to produce an Android `AAR` file that contains both the Android service as well as it's dependencies, however this is still experimental. If you wish to try it, remove the `org.eclipse.paho:org.eclipse.paho.client.mqttv3` dependency and append `@aar` to the end of the Android Service dependency. E.g. `org.eclipse.paho:org.eclipse.paho.android.service:1.1.1@aar`
