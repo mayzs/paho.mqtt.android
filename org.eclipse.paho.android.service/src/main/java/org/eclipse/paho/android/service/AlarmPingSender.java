@@ -12,27 +12,19 @@
  */
 package org.eclipse.paho.android.service;
 
-import org.eclipse.paho.client.mqttv3.IMqttActionListener;
-import org.eclipse.paho.client.mqttv3.IMqttToken;
 import org.eclipse.paho.client.mqttv3.MqttPingSender;
 import org.eclipse.paho.client.mqttv3.internal.ClientComms;
-
-import android.annotation.SuppressLint;
-import android.app.PendingIntent;
-import android.app.Service;
-import android.content.BroadcastReceiver;
-import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
-import android.os.Build;
-import android.os.Handler;
-import android.os.Looper;
 import android.util.Log;
 
 import androidx.work.Constraints;
+import androidx.work.Data;
+import androidx.work.ExistingWorkPolicy;
 import androidx.work.NetworkType;
 import androidx.work.OneTimeWorkRequest;
 import androidx.work.WorkManager;
+
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Default ping sender implementation on Android. It is based on AlarmManager.
@@ -50,9 +42,8 @@ class AlarmPingSender implements MqttPingSender {
 	// TODO: Add log.
 	private ClientComms comms;
 	private MqttService service;
-	private BroadcastReceiver alarmReceiver;
 	private AlarmPingSender that;
-	private PendingIntent pendingIntent;
+	private static final ConcurrentHashMap<String, ClientComms> clientCommsMap=new ConcurrentHashMap<>();
 	private volatile boolean hasStarted = false;
 
 	public AlarmPingSender(MqttService service) {
@@ -67,31 +58,19 @@ class AlarmPingSender implements MqttPingSender {
 	@Override
 	public void init(ClientComms comms) {
 		this.comms = comms;
-		this.alarmReceiver = new AlarmReceiver();
+		String key=comms.getClient().getClientId();
+		clientCommsMap.put(key, comms);
 	}
 
 	@Override
 	public void start() {
-		String action = MqttServiceConstants.PING_SENDER
-				+ comms.getClient().getClientId();
-		Log.d(TAG, "Register alarmreceiver to MqttService"+ action);
-		IntentFilter filter=new IntentFilter(action);
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU){
-			service.registerReceiver(alarmReceiver, filter,Context.RECEIVER_EXPORTED);
-		}else {
-			service.registerReceiver(alarmReceiver, filter);
+		String key=comms.getClient().getClientId();
+		if (clientCommsMap.containsKey(key)){
+			ClientComms clientComms = clientCommsMap.get(key);
+			if (clientComms!=null&&clientComms.getClientState()!=null){
+				schedule(clientComms.getKeepAlive());
+			}
 		}
-		//pendingIntent = PendingIntent.getBroadcast(service, 0, new Intent(
-		//		action), PendingIntent.FLAG_UPDATE_CURRENT);
-		if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-			pendingIntent = PendingIntent.getBroadcast(service, 0, new Intent(
-					action), PendingIntent.FLAG_IMMUTABLE);
-		}else {
-			pendingIntent = PendingIntent.getBroadcast(service, 0, new Intent(
-					action), PendingIntent.FLAG_UPDATE_CURRENT);
-		}
-
-		schedule(comms.getKeepAlive());
 		hasStarted = true;
 	}
 
@@ -100,19 +79,10 @@ class AlarmPingSender implements MqttPingSender {
 
 		Log.d(TAG, "Unregister alarmreceiver to MqttService"+comms.getClient().getClientId());
 		if(hasStarted){
-			if(pendingIntent != null){
-				// Cancel Alarm.
-				//AlarmManager alarmManager = (AlarmManager) service.getSystemService(Service.ALARM_SERVICE);
-				//alarmManager.cancel(pendingIntent);
-				WorkManager.getInstance(that.service).cancelAllWorkByTag("AlarmWorkerTAG");
-			}
+				String key=comms.getClient().getClientId();
+				WorkManager.getInstance(that.service).cancelAllWorkByTag("AlarmWorkerTAG"+key);
 
 			hasStarted = false;
-			try{
-				service.unregisterReceiver(alarmReceiver);
-			}catch(IllegalArgumentException e){
-				//Ignore unregister errors.			
-			}
 		}
 	}
 	@Override
@@ -122,62 +92,29 @@ class AlarmPingSender implements MqttPingSender {
 		Log.d(TAG, "Schedule next alarm at " + nextAlarmInMilliseconds);
 		Log.d(TAG, "Alarm scheule using setExactAndAllowWhileIdle, next: " + delayInMilliseconds);
 		Log.d(TAG, "Alarm scheule using setExact, delay: " + delayInMilliseconds);
-			String action = MqttServiceConstants.PING_SENDER
-					+ comms.getClient().getClientId();
-			Intent intent = new Intent(action);
-		Handler handler = new Handler(Looper.getMainLooper());
-		handler.post(() -> that.service.sendBroadcast(intent));
+
+		OneTimeWorkRequest.Builder alarmWorkerBuilder = new OneTimeWorkRequest.Builder(AlarmWorker.class);
+		Data.Builder data = new Data.Builder();
+		String key=comms.getClient().getClientId();
+		data.putString("key", key);
+
+		alarmWorkerBuilder.setInitialDelay(delayInMilliseconds, TimeUnit.MILLISECONDS)
+				.setInputData(data.build())
+				.addTag("AlarmWorkerTAG"+key)
+				.setConstraints(new Constraints.Builder()
+				.setRequiredNetworkType(NetworkType.CONNECTED)
+				.setRequiresBatteryNotLow(true).build());
+		OneTimeWorkRequest workRequest=alarmWorkerBuilder.build();
+		String uniqueWorkName = "AlarmWorker"+key+System.currentTimeMillis();
+
+		WorkManager.getInstance(that.service).enqueueUniqueWork(
+				uniqueWorkName,
+				ExistingWorkPolicy.REPLACE,
+				workRequest
+		);
 
 	}
-
-	/*
-	 * This class sends PingReq packet to MQTT broker
-	 */
-	class AlarmReceiver extends BroadcastReceiver {
-		//private WakeLock wakelock;
-		private final String wakeLockTag = MqttServiceConstants.PING_WAKELOCK
-				+ that.comms.getClient().getClientId();
-
-		@Override
-        //@SuppressLint("Wakelock")
-		public void onReceive(Context context, Intent intent) {
-			// According to the docs, "Alarm Manager holds a CPU wake lock as
-			// long as the alarm receiver's onReceive() method is executing.
-			// This guarantees that the phone will not sleep until you have
-			// finished handling the broadcast.", but this class still get
-			// a wake lock to wait for ping finished.
-
-			Log.d(TAG, "Sending Ping at:" + System.currentTimeMillis()+intent.getAction());
-			OneTimeWorkRequest workRequest = new OneTimeWorkRequest.Builder(AlarmWorker.class)
-					.addTag("AlarmWorkerTAG")
-					.setConstraints(new Constraints.Builder()
-							.setRequiredNetworkType(NetworkType.CONNECTED)
-							.setRequiresBatteryNotLow(true)
-							.build())
-					.build();
-			WorkManager.getInstance(that.service).enqueue(workRequest);
-			WorkManager.getInstance(that.service).getWorkInfoByIdLiveData(workRequest.getId()).observe(that.service, workInfo ->{
-				if (workInfo != null && workInfo.getState().isFinished()){
-					Log.d(TAG, "Ping finished. Release lock(" + wakeLockTag + ")");
-					IMqttToken token = comms.checkForActivity(new IMqttActionListener() {
-
-						@Override
-						public void onSuccess(IMqttToken asyncActionToken) {
-							Log.d(TAG, "Success. Release lock(" + wakeLockTag + "):"
-									+ System.currentTimeMillis());
-							WorkManager.getInstance(that.service).cancelWorkById(workRequest.getId());
-						}
-
-						@Override
-						public void onFailure(IMqttToken asyncActionToken,
-											  Throwable exception) {
-							Log.d(TAG, "Failure. Release lock(" + wakeLockTag + "):"
-									+ System.currentTimeMillis());
-							WorkManager.getInstance(that.service).cancelWorkById(workRequest.getId());
-						}
-					});
-				}
-			});
-		}
+	public static ConcurrentHashMap<String, ClientComms> getClientCommsMap(){
+		return clientCommsMap;
 	}
 }
