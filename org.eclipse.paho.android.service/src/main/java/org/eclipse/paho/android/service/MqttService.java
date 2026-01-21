@@ -18,6 +18,7 @@ package org.eclipse.paho.android.service;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.paho.client.mqttv3.DisconnectedBufferOptions;
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
@@ -347,6 +348,7 @@ public class MqttService extends LifecycleService implements MqttTraceHandler {
    * Request all clients to reconnect if appropriate
    */
   void reconnect() {
+      WorkManager.getInstance(this).cancelAllWorkByTag("NetworkWorkerTAG");
 	traceDebug(TAG, "Reconnect to server, client size=" + connections.size());
 	for (MqttConnection client : connections.values()) {
 			traceDebug("Reconnect Client:",
@@ -844,6 +846,7 @@ public class MqttService extends LifecycleService implements MqttTraceHandler {
   	//if (Build.VERSION.SDK_INT < 14 /**Build.VERSION_CODES.ICE_CREAM_SANDWICH**/) {
   		if(backgroundDataPreferenceMonitor != null){
   			unregisterReceiver(backgroundDataPreferenceMonitor);
+            backgroundDataPreferenceMonitor=null;
   		}
 		//}
   }
@@ -886,6 +889,8 @@ private final Handler handler = new Handler(Objects.requireNonNull(Looper.myLoop
         super.handleMessage(msg);
         if (msg.what == 1){
             OneTimeWorkRequest workRequest = new OneTimeWorkRequest.Builder(NetworkConnectionWorker.class)
+                    .setInitialDelay(10, TimeUnit.SECONDS)
+                    .addTag("NetworkWorkerTAG")
                     .setConstraints(new Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
                     .build();
             WorkManager.getInstance(MqttService.this).enqueue(workRequest);
@@ -903,6 +908,21 @@ private final Handler handler = new Handler(Objects.requireNonNull(Looper.myLoop
                             }
                         }
                     });
+        }
+        if (msg.what==2){
+            ConnectivityManager cm = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+            traceDebug(TAG,"Reconnect since BroadcastReceiver.");
+            if (cm.getBackgroundDataSetting()) {
+                if (!backgroundDataEnabled) {
+                    backgroundDataEnabled = true;
+                    // we have the Internet connection - have another try at
+                    // connecting
+                    reconnect();
+                }
+            } else {
+                backgroundDataEnabled = false;
+                notifyClientsOffline();
+            }
         }
     }
 };
@@ -928,6 +948,7 @@ private final Handler handler = new Handler(Objects.requireNonNull(Looper.myLoop
 	 * Notify clients we're offline
 	 */
     private void notifyClientsOffline() {
+        WorkManager.getInstance(this).cancelAllWorkByTag("NetworkWorkerTAG");
 		for (MqttConnection connection : connections.values()) {
 			connection.offline();
 		}
@@ -942,19 +963,7 @@ private final Handler handler = new Handler(Objects.requireNonNull(Looper.myLoop
 		@SuppressWarnings("deprecation")
 		@Override
 		public void onReceive(Context context, Intent intent) {
-			ConnectivityManager cm = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
-			traceDebug(TAG,"Reconnect since BroadcastReceiver.");
-			if (cm.getBackgroundDataSetting()) {
-				if (!backgroundDataEnabled) {
-					backgroundDataEnabled = true;
-					// we have the Internet connection - have another try at
-					// connecting
-					reconnect();
-				}
-			} else {
-				backgroundDataEnabled = false;
-				notifyClientsOffline();
-			}
+            handler.sendEmptyMessage(2);
 		}
 	}
 
