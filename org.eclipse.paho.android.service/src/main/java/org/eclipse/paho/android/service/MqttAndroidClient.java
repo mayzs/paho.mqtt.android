@@ -25,14 +25,17 @@ import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
+import java.util.Timer;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 
+import org.eclipse.paho.android.service.utils.ManagerUtils;
 import org.eclipse.paho.client.mqttv3.DisconnectedBufferOptions;
 import org.eclipse.paho.client.mqttv3.IMqttActionListener;
 import org.eclipse.paho.client.mqttv3.IMqttAsyncClient;
@@ -58,9 +61,14 @@ import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
+import android.os.Message;
+import android.util.Log;
 import android.util.SparseArray;
 
+import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
 
 /**
@@ -78,7 +86,7 @@ import androidx.core.content.ContextCompat;
  * <li>disconnect
  * </ul>
  */
-public class MqttAndroidClient extends BroadcastReceiver implements
+public class MqttAndroidClient implements
 		IMqttAsyncClient {
 
 	/**
@@ -118,6 +126,7 @@ public class MqttAndroidClient extends BroadcastReceiver implements
 			bindedService = true;
 			// now that we have the service available, we can actually
 			// connect...
+			collect();
 			doConnect();
 			}catch (Exception e){
 				e.printStackTrace();
@@ -164,7 +173,8 @@ public class MqttAndroidClient extends BroadcastReceiver implements
 	private final Ack messageAck;
 	private boolean traceEnabled = false;
 	
-	private volatile boolean receiverRegistered = false;
+	//private volatile boolean receiverRegistered = false;
+	private final AtomicBoolean receiverRegistered=new AtomicBoolean(false);
 	private volatile boolean bindedService = false;
 	/**
 	 * Constructor - create an MqttAndroidClient that can be used to communicate with an MQTT server on android
@@ -248,6 +258,9 @@ public class MqttAndroidClient extends BroadcastReceiver implements
 		this.clientId = clientId;
 		this.persistence = persistence;
 		messageAck = ackType;
+		if (!receiverRegistered.get()){
+			collect();
+		}
 	}
 
 	 /**
@@ -442,10 +455,13 @@ public class MqttAndroidClient extends BroadcastReceiver implements
 			try {
 				myContext.bindService(serviceStartIntent, serviceConnection,
 						Context.BIND_AUTO_CREATE);
-			}catch (Exception e){
+			}catch (Throwable e){
 				e.printStackTrace();
 			}
-			if (!receiverRegistered) registerReceiver(this);
+			//if (!receiverRegistered) registerReceiver(this);
+			if (!receiverRegistered.get()){
+				collect();
+			}
 		}
 		else {
 			pool.execute(new Runnable() {
@@ -455,7 +471,7 @@ public class MqttAndroidClient extends BroadcastReceiver implements
 					doConnect();
 					
 					//Register receiver to show shoulder tap.
-					if (!receiverRegistered) registerReceiver(MqttAndroidClient.this);
+					//if (!receiverRegistered) registerReceiver(MqttAndroidClient.this);
 				}
 
 			});
@@ -463,14 +479,26 @@ public class MqttAndroidClient extends BroadcastReceiver implements
 
 		return token;
 	}
+	private void collect(){
+		if (mqttService == null) {
+			return;
+		}
 
-	private void registerReceiver(BroadcastReceiver receiver) {
-		IntentFilter filter = new IntentFilter();
-				filter.addAction(MqttServiceConstants.CALLBACK_TO_ACTIVITY);
-				//LocalBroadcastManager.getInstance(myContext).registerReceiver(receiver, filter);
-		ContextCompat.registerReceiver(myContext, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED);
-		receiverRegistered = true;
+		ManagerUtils.INSTANCE.getCallbackActivity().observe(mqttService,bundle->{
+			if (bundle!=null){
+				onReceive(bundle);
+				receiverRegistered.set(true);
+			}
+		});
 	}
+
+	//private void registerReceiver(BroadcastReceiver receiver) {
+	//	IntentFilter filter = new IntentFilter();
+	//			filter.addAction(MqttServiceConstants.CALLBACK_TO_ACTIVITY);
+	//			//LocalBroadcastManager.getInstance(myContext).registerReceiver(receiver, filter);
+	//	ContextCompat.registerReceiver(myContext, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED);
+	//	receiverRegistered = true;
+	//}
 
 	/**
 	 * Actually do the mqtt connect operation
@@ -1384,49 +1412,47 @@ public class MqttAndroidClient extends BroadcastReceiver implements
 	 * This method should not be explicitly invoked.
 	 * </p>
 	 */
-	@Override
-	public void onReceive(Context context, Intent intent) {
-		Bundle data = intent.getExtras();
 
-		String handleFromIntent = data
-				.getString(MqttServiceConstants.CALLBACK_CLIENT_HANDLE);
-
-		if ((handleFromIntent == null)
-				|| (!handleFromIntent.equals(clientHandle))) {
+	public void onReceive(Bundle data) {
+		//Bundle data = intent.getExtras();
+		Status status;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+			status=data.getSerializable(MqttServiceConstants.CALLBACK_STATUS,Status.class);
+        }else {
+			status=(Status) data.getSerializable(MqttServiceConstants.CALLBACK_STATUS);
+		}
+		if (status==Status.ERROR){
+			Log.e("mqttClient","status->"+status+"   data=>"+data);
+		}else if (data.toString().toLowerCase().contentEquals("exception")){
+			Log.w("mqttClient","status->"+status+"   data=>"+data);
+		}else {
+			Log.v("mqttClient","status->"+status+"   data=>"+data);
+		}
+        String handleFromIntent = data.getString(MqttServiceConstants.CALLBACK_CLIENT_HANDLE);
+		if ((handleFromIntent == null) || (!handleFromIntent.equals(clientHandle))) {
 			return;
 		}
-
 		String action = data.getString(MqttServiceConstants.CALLBACK_ACTION);
-
 		if (MqttServiceConstants.CONNECT_ACTION.equals(action)) {
 			connectAction(data);
-		}
-		else if (MqttServiceConstants.CONNECT_EXTENDED_ACTION.equals(action)){
+		} else if (MqttServiceConstants.CONNECT_EXTENDED_ACTION.equals(action)){
 			connectExtendedAction(data);
-		}
-		else if (MqttServiceConstants.MESSAGE_ARRIVED_ACTION.equals(action)) {
+		} else if (MqttServiceConstants.MESSAGE_ARRIVED_ACTION.equals(action)) {
 			messageArrivedAction(data);
-		}
-		else if (MqttServiceConstants.SUBSCRIBE_ACTION.equals(action)) {
+		} else if (MqttServiceConstants.SUBSCRIBE_ACTION.equals(action)) {
 			subscribeAction(data);
-		}
-		else if (MqttServiceConstants.UNSUBSCRIBE_ACTION.equals(action)) {
+		} else if (MqttServiceConstants.UNSUBSCRIBE_ACTION.equals(action)) {
 			unSubscribeAction(data);
-		}
-		else if (MqttServiceConstants.SEND_ACTION.equals(action)) {
+		} else if (MqttServiceConstants.SEND_ACTION.equals(action)) {
 			sendAction(data);
-		}
-		else if (MqttServiceConstants.MESSAGE_DELIVERED_ACTION.equals(action)) {
+		} else if (MqttServiceConstants.MESSAGE_DELIVERED_ACTION.equals(action)) {
 			messageDeliveredAction(data);
-		}
-		else if (MqttServiceConstants.ON_CONNECTION_LOST_ACTION
+		} else if (MqttServiceConstants.ON_CONNECTION_LOST_ACTION
 				.equals(action)) {
 			connectionLostAction(data);
-		}
-		else if (MqttServiceConstants.DISCONNECT_ACTION.equals(action)) {
+		} else if (MqttServiceConstants.DISCONNECT_ACTION.equals(action)) {
 			disconnected(data);
-		}
-		else if (MqttServiceConstants.TRACE_ACTION.equals(action)) {
+		} else if (MqttServiceConstants.TRACE_ACTION.equals(action)) {
 			traceAction(data);
 		}else{
 			mqttService.traceError(MqttService.TAG, "Callback action doesn't exist.");	
@@ -1782,11 +1808,11 @@ public class MqttAndroidClient extends BroadcastReceiver implements
 	 * IntentReceiver leaks.
 	 */
 	public void unregisterResources(){
-		if(myContext != null && receiverRegistered){
+		if(myContext != null && receiverRegistered.get()){
 			synchronized (MqttAndroidClient.this) {
 				//LocalBroadcastManager.getInstance(myContext).unregisterReceiver(this);
-				myContext.unregisterReceiver(this);
-				receiverRegistered = false;
+				//myContext.unregisterReceiver(this);
+				receiverRegistered.set(false);
 			}
 			if(bindedService){
 				try{
@@ -1809,8 +1835,9 @@ public class MqttAndroidClient extends BroadcastReceiver implements
 	public void registerResources(Context context){
 		if(context != null){
 			this.myContext = context;
-			if(!receiverRegistered){
-				registerReceiver(this);
+			if(!receiverRegistered.get()){
+				//registerReceiver(this);
+				collect();
 			}
 		}
 	}
