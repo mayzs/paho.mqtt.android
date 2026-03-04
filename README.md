@@ -7,8 +7,8 @@ The Paho Android Service is an MQTT client library written in Java for developin
 修改原有 eclipse paho mqtt android 项目，支持AndroidX,支持 Android 14
 
 implementation 'org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5'
-implementation 'io.github.mayzs:paho.mqtt.android:1.2.6'
-低版本 gradle 使用 implementation 'io.github.mayzs:paho.mqtt.android:1.2.6@aar'
+implementation 'io.github.mayzs:paho.mqtt.android:1.2.7'
+低版本 gradle 使用 implementation 'io.github.mayzs:paho.mqtt.android:1.2.7@aar'
 
 manifest中 service 标签添加  android:foregroundServiceType="dataSync"
 
@@ -17,6 +17,8 @@ MqttAndroidClient client = new MqttAndroidClient(context, uri, clientId);
  client.setForegroundService(notification,1));
  
  1.2.0 版本开始使用 Worker 替换AlarmManager,去除USE_EXACT_ALARM和SCHEDULE_EXACT_ALARM权限
+ 
+ 1.2.7 版本开始移除了项目内部 BroadcastReceiver 发通知,改用 liveData 实现
  ```
 
 详情参考 : 原项目[https://github.com/eclipse/paho.mqtt.android](https://github.com/eclipse/paho.mqtt.android)
@@ -97,7 +99,7 @@ dependencies {
     //compile 'org.eclipse.paho:org.eclipse.paho.android.service:1.1.1'
     
     implementation 'org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5'
-    implementation 'io.github.mayzs:paho.mqtt.android:1.2.6'
+    implementation 'io.github.mayzs:paho.mqtt.android:1.2.7'
 }
 ```
 __Note:__ currently you have to include the `org.eclipse.paho:org.eclipse.paho.client.mqttv3` dependency as well. We are attempting to get the build to produce an Android `AAR` file that contains both the Android service as well as it's dependencies, however this is still experimental. If you wish to try it, remove the `org.eclipse.paho:org.eclipse.paho.client.mqttv3` dependency and append `@aar` to the end of the Android Service dependency. E.g. `org.eclipse.paho:org.eclipse.paho.android.service:1.1.1@aar`
